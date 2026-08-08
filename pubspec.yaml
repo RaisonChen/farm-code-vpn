@@ -1,7 +1,7 @@
 name: appproxy
 description: 农场取code - 单开关代理
 publish_to: 'none'
-version: 1.0.9+9
+version: 1.0.10+10
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -9,8 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  path_provider: ^2.1.1
-  shared_preferences: ^2.2.2
+  cupertino_icons: ^1.0.6
+  path_provider: ^2.1.3
+  shared_preferences: ^2.2.3
+  share_plus: ^7.2.2
 
 dev_dependencies:
   flutter_test:
@@ -20,4 +22,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/ca.cer
+    - assets/ca.crt
