@@ -122,11 +122,16 @@ class IyueVPNService : VpnService() {
             key.mark = 0
             key.mtu = 1500
             key.device = "fd://" + vpnInterface!!.fd
+            key.gateway = proxyHost
+            key.port = proxyPort
+            key.forward = "$proxyType://$proxyHost:$proxyPort"
+            key.username = proxyUser
+            key.password = proxyPass
 
-            // 启动 tun2socks 引擎（不打印 host:port 到日志）
+            // 启动 tun2socks 引擎
             Thread {
                 try {
-                    Engine.start(key, proxyType, proxyHost, proxyPort, proxyUser, proxyPass)
+                    Engine.start(key)
                 } catch (e: Exception) {
                     Log.e(TAG, "Engine.start error: ${e.message}")
                 }
