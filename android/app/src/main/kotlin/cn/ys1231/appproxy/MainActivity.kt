@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
@@ -19,32 +18,24 @@ import androidx.core.content.ContextCompat
 import cn.ys1231.appproxy.IyueService.IyueVPNService
 import cn.ys1231.appproxy.IyueService.VpnServiceController
 import cn.ys1231.appproxy.data.Utils
-import cn.ys1231.appproxy.mcpserver.MCPForegroundService
-import cn.ys1231.appproxy.mcpserver.MCPServer
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-
 class MainActivity : FlutterActivity() {
-    private val TAG = "iyue->${this.javaClass.simpleName}"
+    private val TAG = "iyue-${this.javaClass.simpleName}"
     private val CHANNEL = "cn.ys1231/appproxy"
     private val CHANNEL_VPN = "cn.ys1231/appproxy/vpn"
     private val CHANNEL_APP_UPDATE = "cn.ys1231/appproxy/appupdate"
-    private val CHANNEL_MCP_SERVER = "cn.ys1231/appproxy/mcpserver"
     private var FLUTTER_VPN_CHANNEL: MethodChannel? = null
     private var FLUTTER_CHANNEL: MethodChannel? = null
-    private var FLUTTER_MCP_SERVER: MethodChannel? = null
     private var utils: Utils? = null
     private var intentVpnService: Intent? = null
     private var iyueVpnService: IyueVPNService? = null
     private var isBind: Boolean = false
-    var currentProxy: Map<String, Any>? = null
+    var currentProxy: Map<*, *>? = null
     private var conn: ServiceConnection? = null
     private var vpnController: VpnServiceController? = null
-    private var mcpServiceBinder: MCPForegroundService.MCPServiceBinder? = null
-    private var mcpConn: ServiceConnection? = null
-    private var isMcpBind: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,11 +44,9 @@ class MainActivity : FlutterActivity() {
         conn = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
                 Log.d(TAG, "onServiceConnected: $name")
-
                 if (service is IyueVPNService.VPNServiceBinder) {
                     iyueVpnService = service.getService()
                     vpnController?.updateVpnService(iyueVpnService)
-                    MCPServer.getInstance(context).setVpnController(vpnController)
                     Log.d(TAG, "onServiceConnected: ${iyueVpnService.toString()}")
                 } else {
                     Log.d(TAG, "onServiceConnected: ClassCastException")
@@ -71,24 +60,6 @@ class MainActivity : FlutterActivity() {
         if (bindService(intentVpnService!!, conn!!, Context.BIND_AUTO_CREATE)) {
             isBind = true
         }
-
-        // 启动并绑定 MCPForegroundService，确保 App 进入后台后 MCP Server 持续运行
-        val mcpServiceIntent = Intent(this, MCPForegroundService::class.java)
-        startForegroundService(mcpServiceIntent)
-        mcpConn = object : ServiceConnection {
-            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-                Log.d(TAG, "MCPForegroundService onServiceConnected")
-                mcpServiceBinder = service as? MCPForegroundService.MCPServiceBinder
-            }
-
-            override fun onServiceDisconnected(name: ComponentName?) {
-                Log.d(TAG, "MCPForegroundService onServiceDisconnected")
-                mcpServiceBinder = null
-            }
-        }
-        if (bindService(mcpServiceIntent, mcpConn!!, Context.BIND_AUTO_CREATE)) {
-            isMcpBind = true
-        }
         checkVpnPermission()
     }
 
@@ -101,7 +72,6 @@ class MainActivity : FlutterActivity() {
         Thread {
             Log.d(TAG, "check iyueVpnService isRunning: " + iyueVpnService?.isRunning())
             while (true) {
-
                 if (iyueVpnService?.isRunning() == true) {
                     Thread.sleep(1000)
                 } else {
@@ -143,7 +113,6 @@ class MainActivity : FlutterActivity() {
                 } catch (e: Exception) {
                     result.error("-1", e.message, null)
                 }
-
             }
         }
 
@@ -155,7 +124,7 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "startVpn" -> {
                     try {
-                        currentProxy = call.arguments<Map<String, Any>>()
+                        currentProxy = call.arguments()
                         checkVpnPermission()
                         startVpnService()
                         result.success(iyueVpnService?.isRunning())
@@ -173,6 +142,7 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL_APP_UPDATE
@@ -180,55 +150,13 @@ class MainActivity : FlutterActivity() {
             if (call.method == "startDownload") {
                 try {
                     Log.d(TAG, "configureFlutterEngine ${call.method} ")
-                    val url: String? = call.arguments<String>()
+                    val url: String? = call.arguments()
                     startDownload(url)
                 } catch (e: Exception) {
                     result.error("-1", e.message, null)
                 }
             }
         }
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            CHANNEL_MCP_SERVER
-        ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "startMcpServer" -> {
-                    try {
-                        mcpServiceBinder?.startMcpServer()
-                        result.success(true)
-                    } catch (e: Exception) {
-                        result.error("-1", e.message, null)
-                    }
-                }
-                "stopMcpServer" -> {
-                    try {
-                        mcpServiceBinder?.stopMcpServer()
-                        result.success(true)
-                    } catch (e: Exception) {
-                        result.error("-1", e.message, null)
-                    }
-                }
-                "updateMcpServerConfig" -> {
-                    try {
-                        val arguments = call.arguments as List<*>
-                        val port: Int = arguments[0] as Int
-                        val auth: String = arguments[1] as String
-                        // 用局部变量捕获 binder，避免两次访问间 binder 状态变化引发不一致
-                        val binder = mcpServiceBinder
-                        if (binder != null) {
-                            binder.updateMcpPort(port)
-                            binder.updateMcpAuth(auth)
-                            result.success(true)
-                        } else {
-                            result.success(false)
-                        }
-                    } catch (e: Exception) {
-                        result.error("-1", e.message, null)
-                    }
-                }
-            }
-        }
-
 
         // 遍历所有 app 通知刷新
         Thread {
@@ -257,7 +185,6 @@ class MainActivity : FlutterActivity() {
                     REQUEST_NOTIFICATION_PERMISSION
                 )
             } else {
-                // 权限已被授予
                 Log.d(TAG, "onCreate: 通知权限已授予!")
             }
         }
@@ -272,12 +199,9 @@ class MainActivity : FlutterActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == VPN_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK) {
-                // 用户授权成功
                 Log.d(TAG, "onActivityResult: 用户授权成功")
             } else {
-                // 用户拒绝授权，处理相应逻辑
                 Log.d(TAG, "onActivityResult: 用户拒绝授权 ")
-                // 在这里可以通知Flutter层授权失败 TODO
             }
         }
     }
@@ -290,10 +214,8 @@ class MainActivity : FlutterActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_NOTIFICATION_PERMISSION) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // 权限被授予
                 Toast.makeText(this, "通知权限被授予", Toast.LENGTH_SHORT).show()
             } else {
-                // 权限被拒绝
                 Toast.makeText(this, "此应用程序需要通知权限", Toast.LENGTH_SHORT).show()
                 startNotificationSetting()
             }
@@ -324,10 +246,6 @@ class MainActivity : FlutterActivity() {
         if (isBind) {
             unbindService(conn!!)
             isBind = false
-        }
-        if (isMcpBind) {
-            unbindService(mcpConn!!)
-            isMcpBind = false
         }
     }
 }
