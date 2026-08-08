@@ -17,6 +17,7 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
   late AnimationController _animCtrl;
   late Animation<double> _scaleAnim;
 
+  // 必须与 MainActivity.kt 中 CHANNEL_VPN 一致
   static const platform = MethodChannel('cn.ys1231/appproxy/vpn');
   static const _prefsKey = 'ca_installed';
 
@@ -58,7 +59,7 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
   Future<void> _toggle(bool v) async {
     try {
       if (v) {
-        await platform.invokeMethod('startVpn', {
+        await platform.invokeMethod('startVpn', <String, dynamic>{
           'proxyName': '农场取code',
           'proxyType': _type,
           'proxyHost': _h1 + _h2,
@@ -181,7 +182,7 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
                 children: [
                   // 图标 + 动画
                   ScaleTransition(
-                    scale: _on ? _scaleAnim : _scaleAnim,
+                    scale: _scaleAnim,
                     child: Container(
                       width: 72,
                       height: 72,
@@ -273,7 +274,7 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
 
                   const SizedBox(height: 16),
                   Text(
-                    'v1.0.8 · 仅代理QQ',
+                    'v1.0.9 · 仅代理QQ',
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade400,
