@@ -19,6 +19,8 @@ import androidx.core.content.ContextCompat
 import cn.ys1231.appproxy.IyueService.IyueVPNService
 import cn.ys1231.appproxy.IyueService.VpnServiceController
 import cn.ys1231.appproxy.data.Utils
+import cn.ys1231.appproxy.mcpserver.MCPForegroundService
+import cn.ys1231.appproxy.mcpserver.MCPServer
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -28,8 +30,10 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "cn.ys1231/appproxy"
     private val CHANNEL_VPN = "cn.ys1231/appproxy/vpn"
     private val CHANNEL_APP_UPDATE = "cn.ys1231/appproxy/appupdate"
+    private val CHANNEL_MCP_SERVER = "cn.ys1231/appproxy/mcpserver"
     private var FLUTTER_VPN_CHANNEL: MethodChannel? = null
     private var FLUTTER_CHANNEL: MethodChannel? = null
+    private var FLUTTER_MCP_SERVER: MethodChannel? = null
     private var utils: Utils? = null
     private var intentVpnService: Intent? = null
     private var iyueVpnService: IyueVPNService? = null
@@ -37,9 +41,16 @@ class MainActivity : FlutterActivity() {
     var currentProxy: Map<*, *>? = null
     private var conn: ServiceConnection? = null
     private var vpnController: VpnServiceController? = null
+    private var mcpServiceBinder: MCPForegroundService.MCPServiceBinder? = null
+    private var mcpConn: ServiceConnection? = null
+    private var isMcpBind: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 修复：utils 必须先初始化，再传给 VpnServiceController
+        utils = Utils(this)
+
         intentVpnService = Intent(this, IyueVPNService::class.java)
         vpnController = VpnServiceController(this, iyueVpnService, utils!!)
         conn = object : ServiceConnection {
@@ -48,6 +59,7 @@ class MainActivity : FlutterActivity() {
                 if (service is IyueVPNService.VPNServiceBinder) {
                     iyueVpnService = service.getService()
                     vpnController?.updateVpnService(iyueVpnService)
+                    MCPServer.getInstance(applicationContext).setVpnController(vpnController)
                     Log.d(TAG, "onServiceConnected: ${iyueVpnService.toString()}")
                 } else {
                     Log.d(TAG, "onServiceConnected: ClassCastException")
@@ -61,16 +73,41 @@ class MainActivity : FlutterActivity() {
         if (bindService(intentVpnService!!, conn!!, Context.BIND_AUTO_CREATE)) {
             isBind = true
         }
+
+        // 启动并绑定 MCPForegroundService（已禁用通知）
+        val mcpServiceIntent = Intent(this, MCPForegroundService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(mcpServiceIntent)
+        } else {
+            startService(mcpServiceIntent)
+        }
+        mcpConn = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                Log.d(TAG, "MCPForegroundService onServiceConnected")
+                mcpServiceBinder = service as? MCPForegroundService.MCPServiceBinder
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                Log.d(TAG, "MCPForegroundService onServiceDisconnected")
+                mcpServiceBinder = null
+            }
+        }
+        if (bindService(mcpServiceIntent, mcpConn!!, Context.BIND_AUTO_CREATE)) {
+            isMcpBind = true
+        }
         checkVpnPermission()
     }
 
     private fun startVpnService() {
         Log.d(TAG, "startVpnService: ${currentProxy.toString()}")
-        // 修复：将 Map<*, *> 转换为 Map<String, Any>
-        val typedProxy = currentProxy?.mapKeys { it.key.toString() }
-            ?.mapValues { it.value as Any } ?: emptyMap()
-        iyueVpnService?.startVpnService(typedProxy)
-        vpnController?.setVpnConfig(currentProxy!!)
+
+        // 修复：Map<*, *> → Map<String, Any> 类型转换
+        val raw = currentProxy ?: emptyMap<Any?, Any?>()
+        val typed: Map<String, Any> = raw.mapKeys { it.key.toString() }
+            .mapValues { it.value ?: "" }
+
+        iyueVpnService?.startVpnService(typed)
+        vpnController?.setVpnConfig(typed)
 
         // 检测VPN服务是否停止 通知 Flutter 更新 ui
         Thread {
@@ -128,7 +165,8 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "startVpn" -> {
                     try {
-                        currentProxy = call.arguments()
+                        // 修复：安全类型转换
+                        currentProxy = call.arguments() as? Map<*, *>
                         checkVpnPermission()
                         startVpnService()
                         result.success(iyueVpnService?.isRunning())
@@ -162,6 +200,52 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        FLUTTER_MCP_SERVER = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            CHANNEL_MCP_SERVER
+        )
+        FLUTTER_MCP_SERVER!!.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "startMcpServer" -> {
+                    try {
+                        mcpServiceBinder?.startMcpServer()
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("-1", e.message, null)
+                    }
+                }
+                "stopMcpServer" -> {
+                    try {
+                        mcpServiceBinder?.stopMcpServer()
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("-1", e.message, null)
+                    }
+                }
+                "updateMcpServerConfig" -> {
+                    try {
+                        val arguments = call.arguments as? List<*>
+                        if (arguments != null && arguments.size >= 2) {
+                            val port: Int = arguments[0] as? Int ?: 0
+                            val auth: String = arguments[1] as? String ?: ""
+                            val binder = mcpServiceBinder
+                            if (binder != null) {
+                                binder.updateMcpPort(port)
+                                binder.updateMcpAuth(auth)
+                                result.success(true)
+                            } else {
+                                result.success(false)
+                            }
+                        } else {
+                            result.error("-1", "Invalid arguments", null)
+                        }
+                    } catch (e: Exception) {
+                        result.error("-1", e.message, null)
+                    }
+                }
+            }
+        }
+
         // 遍历所有 app 通知刷新
         Thread {
             Log.d(TAG, "configureFlutterEngine: start get app list info")
@@ -176,6 +260,7 @@ class MainActivity : FlutterActivity() {
 
     private val VPN_REQUEST_CODE = 100
     private val REQUEST_NOTIFICATION_PERMISSION = 1231
+
     private fun checkVpnPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
@@ -250,6 +335,10 @@ class MainActivity : FlutterActivity() {
         if (isBind) {
             unbindService(conn!!)
             isBind = false
+        }
+        if (isMcpBind) {
+            unbindService(mcpConn!!)
+            isMcpBind = false
         }
     }
 }
