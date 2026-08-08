@@ -9,18 +9,18 @@ jobs:
     timeout-minutes: 35
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Set up Java
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Flutter
+      - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -29,11 +29,14 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build release APK
         run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
+        with:
+          name: single-switch-apk
+          path: build/app/outputs/flutter-apk/*.apk
         with:
           name: single-switch-apk
           path: build/app/outputs/flutter-apk/*.apk
