@@ -22,7 +22,7 @@ import engine.Key
 
 class IyueVPNService : VpnService() {
 
-    private val TAG = "iyue->${this.javaClass.simpleName} "
+    private val TAG = "iyue-${this.javaClass.simpleName} "
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var isRunning = false
@@ -62,7 +62,6 @@ class IyueVPNService : VpnService() {
     fun startVpnService(data: Map<String, Any>) {
         Log.d(TAG, "startVpnService: $data")
 
-        // {proxyPort=8080, proxyPass=, proxyName=test, proxyType=http, proxyUser=, appProxyPackageList=[com.android.chrome], proxyHost=192.168.0.1}
         val proxyName = data["proxyName"].toString()
         val proxyHost = data["proxyHost"].toString()
         val proxyPort = (data["proxyPort"] as String).toInt()
@@ -70,7 +69,7 @@ class IyueVPNService : VpnService() {
         val proxyUser = data["proxyUser"].toString()
         val proxyPass = data["proxyPass"].toString()
 
-        // 创建并显示前台服务通知
+        // 创建并显示前台服务通知 —— 不暴露域名和端口
         val notificationIntent = Intent(this, MainActivity::class.java)
             .putExtra("iyue_vpn_channel", true)
         val pendingIntent = PendingIntent.getActivity(
@@ -81,8 +80,8 @@ class IyueVPNService : VpnService() {
         )
 
         val notification = NotificationCompat.Builder(this, "iyue_vpn_channel")
-            .setContentTitle("${applicationInfo.loadLabel(packageManager)}: $proxyName")
-            .setContentText("$proxyType: $proxyHost:$proxyPort")
+            .setContentTitle("${applicationInfo.loadLabel(packageManager)}")
+            .setContentText("已连接 · 保护中")
             .setSmallIcon(R.mipmap.vpn_round)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -94,12 +93,12 @@ class IyueVPNService : VpnService() {
             .addAddress("10.0.0.2", 24)
             .addRoute("0.0.0.0", 0)
             .setMtu(1500)
-//            .addDnsServer("192.168.10.1")
             .setSession(packageName)
+
         val allowedApps = jsonToList(data["appProxyPackageList"].toString())
-        if(allowedApps.isEmpty()){
+        if (allowedApps.isEmpty()) {
             builder.addDisallowedApplication(packageName)
-        }else{
+        } else {
             for (appPackageName in allowedApps) {
                 try {
                     Log.d(TAG, "addAllowedApplication: $appPackageName")
@@ -117,48 +116,45 @@ class IyueVPNService : VpnService() {
                 return
             }
 
+            isRunning = true
+
             val key = Key()
             key.mark = 0
             key.mtu = 1500
-            key.device = "fd://" + vpnInterface!!.fd // <--- here
-            key.setInterface("")
-            key.logLevel = "error"
-            key.proxy =
-                "${proxyType}://${proxyUser}:${proxyPass}@${proxyHost}:${proxyPort}" // <--- and here
-            key.restAPI = ""
-            key.tcpSendBufferSize = ""
-            key.tcpReceiveBufferSize = ""
-            key.tcpModerateReceiveBuffer = false
-            Engine.insert(key)
-            Engine.start()
-            Log.d(TAG, "startEngine: $key")
-            isRunning = true
-//            stopSignal.await()
+            key.device = "fd://" + vpnInterface!!.fd
+
+            // 启动 tun2socks 引擎（不打印 host:port 到日志）
+            Thread {
+                try {
+                    Engine.start(key, proxyType, proxyHost, proxyPort, proxyUser, proxyPass)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Engine.start error: ${e.message}")
+                }
+            }.start()
+
         } catch (e: Exception) {
-            Log.e(TAG, "startEngine: error ${e.message}")
+            Log.e(TAG, "startVpnService error: ${e.message}")
         }
     }
 
     fun stopVpnService() {
-        Log.d(TAG, "stopVpnService: vpnInterface $vpnInterface")
+        Log.d(TAG, "stopVpnService")
+        isRunning = false
         try {
-            if (vpnInterface != null) {
-                // 不能主动停止,会触发重复关闭fd 导致app崩溃
-//                 Engine.stop()
-                vpnInterface?.close()
-                vpnInterface = null
-                isRunning = false
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            }
-            Log.d(TAG, "stopEngine: success!")
+            Engine.stop()
         } catch (e: Exception) {
-            Log.e(TAG, "stopVpnService: ${e.message}")
+            Log.e(TAG, "Engine.stop error: ${e.message}")
         }
+        try {
+            vpnInterface?.close()
+            vpnInterface = null
+        } catch (e: Exception) {
+            Log.e(TAG, "close vpnInterface error: ${e.message}")
+        }
+        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
-    fun isRunning(): Boolean {
-        return isRunning
-    }
+    fun isRunning(): Boolean = isRunning
 
     private fun jsonToList(jsonString: String): List<String> {
         val gson = Gson()
@@ -174,6 +170,6 @@ class IyueVPNService : VpnService() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "onDestroy: IyueVPNService ")
+        stopVpnService()
     }
-
 }
