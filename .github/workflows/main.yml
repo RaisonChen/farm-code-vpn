@@ -1,4 +1,4 @@
-name: Build Single Switch APK
+name: Build Single Switch2 APK
 
 on:
   workflow_dispatch:
