@@ -66,7 +66,10 @@ class MainActivity : FlutterActivity() {
 
     private fun startVpnService() {
         Log.d(TAG, "startVpnService: ${currentProxy.toString()}")
-        iyueVpnService?.startVpnService(currentProxy!!)
+        // 修复：将 Map<*, *> 转换为 Map<String, Any>
+        val typedProxy = currentProxy?.mapKeys { it.key.toString() }
+            ?.mapValues { it.value as Any } ?: emptyMap()
+        iyueVpnService?.startVpnService(typedProxy)
         vpnController?.setVpnConfig(currentProxy!!)
 
         // 检测VPN服务是否停止 通知 Flutter 更新 ui
@@ -190,7 +193,7 @@ class MainActivity : FlutterActivity() {
             }
         }
         // 准备建立 VPN 连接 检测用户是否同意
-        val intent = VpnService.prepare(context)
+        val intent = VpnService.prepare(this)
         if (intent != null) {
             this.startActivityForResult(intent, VPN_REQUEST_CODE)
         }
