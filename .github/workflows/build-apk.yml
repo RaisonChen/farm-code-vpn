@@ -37,20 +37,3 @@ jobs:
         with:
           name: single-switch-apk
           path: build/app/outputs/flutter-apk/*.apk
-        with:
-          name: single-switch-apk
-          path: build/app/outputs/flutter-apk/*.apk
-      - name: Build btun2socks
-        run: bash btun2socks.sh
-
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Build APK
-        run: flutter build apk --release
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: single-switch-apk
-          path: build/app/outputs/flutter-apk/*.apk
