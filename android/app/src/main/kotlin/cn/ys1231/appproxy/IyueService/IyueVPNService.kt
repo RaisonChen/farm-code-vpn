@@ -22,7 +22,7 @@ import engine.Key
 
 class IyueVPNService : VpnService() {
 
-    private val TAG = "iyue-${this.javaClass.simpleName} "
+    private val TAG = "iyue->${this.javaClass.simpleName} "
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var isRunning = false
@@ -116,50 +116,44 @@ class IyueVPNService : VpnService() {
                 return
             }
 
-            isRunning = true
-
             val key = Key()
             key.mark = 0
             key.mtu = 1500
             key.device = "fd://" + vpnInterface!!.fd
-            key.gateway = proxyHost
-            key.port = proxyPort
-            key.forward = "$proxyType://$proxyHost:$proxyPort"
-            key.username = proxyUser
-            key.password = proxyPass
-
-            // 启动 tun2socks 引擎
-            Thread {
-                try {
-                    Engine.start(key)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Engine.start error: ${e.message}")
-                }
-            }.start()
-
+            key.setInterface("")
+            key.logLevel = "error"
+            key.proxy = "${proxyType}://${proxyUser}:${proxyPass}@${proxyHost}:${proxyPort}"
+            key.restAPI = ""
+            key.tcpSendBufferSize = ""
+            key.tcpReceiveBufferSize = ""
+            key.tcpModerateReceiveBuffer = false
+            Engine.insert(key)
+            Engine.start()
+            Log.d(TAG, "startEngine: success")
+            isRunning = true
         } catch (e: Exception) {
-            Log.e(TAG, "startVpnService error: ${e.message}")
+            Log.e(TAG, "startEngine: error ${e.message}")
         }
     }
 
     fun stopVpnService() {
-        Log.d(TAG, "stopVpnService")
-        isRunning = false
+        Log.d(TAG, "stopVpnService: vpnInterface $vpnInterface")
         try {
-            Engine.stop()
+            if (vpnInterface != null) {
+                vpnInterface?.close()
+                vpnInterface = null
+                isRunning = false
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            }
+            Log.d(TAG, "stopEngine: success!")
         } catch (e: Exception) {
-            Log.e(TAG, "Engine.stop error: ${e.message}")
+            Log.e(TAG, "stopVpnService: ${e.message}")
         }
-        try {
-            vpnInterface?.close()
-            vpnInterface = null
-        } catch (e: Exception) {
-            Log.e(TAG, "close vpnInterface error: ${e.message}")
-        }
-        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
-    fun isRunning(): Boolean = isRunning
+    fun isRunning(): Boolean {
+        return isRunning
+    }
 
     private fun jsonToList(jsonString: String): List<String> {
         val gson = Gson()
@@ -175,6 +169,5 @@ class IyueVPNService : VpnService() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "onDestroy: IyueVPNService ")
-        stopVpnService()
     }
 }
