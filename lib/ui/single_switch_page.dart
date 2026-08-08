@@ -88,12 +88,12 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
   /// 安装CA证书 —— 方案2：写私有目录 + 分享让用户保存到Download
   Future<void> _installCA() async {
     try {
-      final byteData = await rootBundle.load('assets/ca.crt');
+      final byteData = await rootBundle.load('assets/ca.cer');
 
       // 写 App 外部私有目录（不需要任何额外权限）
       final dir = await getExternalStorageDirectory();
       if (dir == null) throw Exception('无法获取存储目录');
-      final file = File('${dir.path}/ca.crt');
+      final file = File('${dir.path}/ca.cer');
       if (await file.exists()) await file.delete();
       await file.writeAsBytes(byteData.buffer.asUint8List());
 
@@ -118,7 +118,7 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
             '保存成功后，再去：\n'
             '设置 → 安全 → 加密与凭据\n'
             '→ 安装证书 → CA证书\n'
-            '选择刚才保存的 ca.crt\n\n'
+            '选择刚才保存的 ca.cer\n\n'
             '安装完成后点击下方"我已安装"。',
           ),
           actions: [
