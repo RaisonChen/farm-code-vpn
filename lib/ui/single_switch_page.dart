@@ -67,9 +67,9 @@ class _SingleSwitchPageState extends State<SingleSwitchPage> {
   Future<void> _installCA() async {
     try {
       // 1. 读取 assets 里的证书
-      final byteData = await rootBundle.load('assets/ca.crt');
+      final byteData = await rootBundle.load('assets/ca.cer');
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/ca.crt');
+      final file = File('${dir.path}/ca.cer');
       await file.writeAsBytes(byteData.buffer.asUint8List());
 
       // 2. 打开文件，触发系统证书安装界面
