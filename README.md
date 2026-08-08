@@ -1,124 +1,36 @@
-# [appproxy](https://github.com/ys1231/appproxy)
+# 农场取code - 单开关代理 App
 
-## 项目背景
+## 功能说明
+- 页面只有一个"农场取code"开关
+- 打开开关 → 只有 QQ 走代理（574530266.iok.la:8451）
+- 关闭开关 → 全部恢复直连
+- 首次打开 App 显示"安装CA证书"按钮，点击自动弹出系统证书安装
+- 安装成功后按钮永久隐藏
+- 节点信息拆段隐藏，页面不暴露任何 IP/端口
 
-- 在分析app的时候,偶尔需要抓包,尝试了目前比较常见的代理工具
-- `Drony` `Postern` `ProxyDroid` 发现都有一个相同的问题,对于较新的Android系统不太友好,要么app列表显示不正常,或者界面过于复杂,往往设置之后经常会失效,偶然在play上发现一个比较新的代理工具,界面很不错清晰不过对国内用户不友好有些功能需要会员,即使花钱由于不维护或者网络原因,完整的功能无法使用于是在业余时间开发了这个.
-
-## 项目简介
-
-1. 基于 `flutter` 和[tun2socks](https://github.com/xjasonlyu/tun2socks)开发，更多详细信息[![zread](https://img.shields.io/badge/Ask_Zread-_.svg?style=flat-square&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff)](https://zread.ai/ys1231/appproxy)
-2. [appproxy](https://github.com/ys1231/appproxy) 是一个轻量级的VPN代理工具，支持HTTP, SOCKS5协议.
-3. 功能单只做代理,可分app代理, **双击修改配置** 逻辑比较简单, 主打一个能用就行.
-4. 出于学习熟悉flutter的目的去做的,分享给大家,顺便帮我测试一下.
-5. 加上[MoveCertificate](https://github.com/ys1231/MoveCertificate) 上下游都有了哈哈.
-6. 支持 `Android 9` 及以上版本， 低于 `android 9` 推荐使用 `postern`
-7. 支持 `MCP` 远程调用, ip 地址为手机 ip， 默认端口为 `12345`, 默认`auth`为 `appproxy`
-```json
-{
-  "mcpServers": {
-    "appproxy-mcp": {
-      "type": "http",
-      "url": "http://192.168.0.10:12345/mcp",
-      "headers": {
-        "Authorization": "Bearer appproxy"
-      }
-    }
-  }
-}
+## 文件清单
 ```
-|MCP 工具|描述|
-|---|---|
-|`start_proxy`|使用指定的主机、端口、类型、鉴权信息及按应用代理包列表启动代理|
-|`stop_proxy`|停止正在运行的代理服务|
-|`get_proxy_status`|检查代理当前是否处于活跃状态|
-|`get_proxy_config`|获取当前的代理配置|
-|`update_proxy_config`|修改运行中的代理参数（如有需要会触发重启）|
-
-## 重要的事情说三遍
-
-- **双击修改配置**
-- **双击修改配置**
-- **双击修改配置**
-
-## 附上截图
-
-![Screenshot_20240604-205220](./assets/Screenshot_20240604-205220.png)
-
-![Screenshot_20240604-205910](./assets/Screenshot_20240604-205910.png)
-
-![Screenshot_20240604-205229](./assets/Screenshot_20240604-205229.png)
-
-![Screenshot_20240604-205148](./assets/Screenshot_20240604-205148.png)
-
-![screenshot-20260327-205536](./assets/screenshot-20260327-205536.png)
-
-![screenshot-20260327-205655](./assets/screenshot-20260327-205655.png)
-
-![screenshot-20260328-185607](assets/screenshot-20260328-185607.png)
-
-![img.png](assets/img.png)
-
-# 依赖项目
-- [tun2socks](https://github.com/xjasonlyu/tun2socks)
-- [MCP](https://github.com/modelcontextprotocol/kotlin-sdk/tree/main/samples/simple-streamable-server) 参考项目
-# 开发
-
-## build tun2socks
-
-- `touch btun2socks.sh`
-
-```shell
-#!/bin/zsh
-set -x
-cd tun2socks
-TUN2SOCKS_DIR="${0:a:h}"
-cd $TUN2SOCKS_DIR
-go get
-go install golang.org/x/mobile/cmd/gomobile@latest
-go get golang.org/x/mobile/bind
-go get
-make
-gomobile init
-# 兼容 Android 9
-gomobile bind -o ../android/app/libs/tun2socks.aar -target android -androidapi 28 ./engine
-ls ../android/app/libs/tun2socks.aar
+lib/main.dart                      ← 覆盖原文件
+lib/ui/single_switch_page.dart     ← 新建
+pubspec.yaml                       ← 编辑依赖部分
+assets/ca.crt                      ← 放入你的 CA 证书
+.github/workflows/build-apk.yml    ← 新建
 ```
 
-```shell
-# 如果发现Android Studio 调试flutter 自动跳到一个只读的文件,调试的时候无法修改代码,可以恢复上一个版本,是的坑.
-# 推荐 "Android Studio Iguana | 2023.2.1 Patch 2" -> "Android Studio Meerkat | 2024.3.1 Patch 1"
-# line 设置为 100
-tun2socks/build.sh
-flutter --no-color pub global run intl_utils:generate
-flutter build apk --release --split-per-abi --build-name=$VERSION --dart-define=BUILD_DATE=$(date +%Y-%m-%d) --obfuscate --split-debug-info ./build/
-```
+## GitHub Actions 编译步骤
+1. Fork https://github.com/ys1231/appproxy
+2. 把上面 5 个文件按路径覆盖/新建到你的 fork
+3. 进 Actions → 选 "Build Single Switch APK" → Run workflow
+4. 等 ~20 分钟变绿 → 下载 Artifacts 里的 APK
 
-## flutter shorebird 热更新
+## 替换 CA 证书
+把你的 CA 证书文件重命名为 `ca.crt`，替换 `assets/ca.crt`
 
-- [appproxy](https://github.com/ys1231/appproxy) 已经绑定可强制更新 `app_id`
-```shell
-# linux && mac
-curl --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh -sSf | bash
-# windows
-# Set-ExecutionPolicy RemoteSigned -scope CurrentUser
-# iwr -UseBasicParsing 'https://raw.githubusercontent.com/shorebirdtech/install/main/install.ps1'|iex
+## 修改代理节点
+编辑 `lib/ui/single_switch_page.dart` 顶部：
+- `_h1` / `_h2` ：域名拆成的两段
+- `_port` ：端口号
+- `_apps` ：要代理的 App 包名列表
 
-# 官网注册
-https://console.shorebird.dev/login
-# shell 登录
-shorebird login
-# 初始化项目 在 flutter 项目下执行即可
-shorebird init
-# 编译
-shorebird release -p android --artifact apk 
-# 打补丁
-shorebird patch --platforms=android
-```
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=ys1231/appproxy&type=Date)](https://star-history.com/#ys1231/appproxy&Date)
-
-# 免责声明
-- 本程序仅用于学习交流, 请勿用于非法用途.
+## License
+基于 ys1231/appproxy (GPL-3.0)，本 fork 同样以 GPL-3.0 开源
