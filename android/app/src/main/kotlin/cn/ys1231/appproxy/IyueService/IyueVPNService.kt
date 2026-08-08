@@ -59,6 +59,13 @@ class IyueVPNService : VpnService() {
         return START_NOT_STICKY
     }
 
+    // ===== 改动1：重写 onRevoke =====
+    override fun onRevoke() {
+        Log.d(TAG, "onRevoke: system revoked VPN")
+        stopVpnService()
+        super.onRevoke()
+    }
+
     fun startVpnService(data: Map<String, Any>) {
         Log.d(TAG, "startVpnService: $data")
 
@@ -69,7 +76,6 @@ class IyueVPNService : VpnService() {
         val proxyUser = data["proxyUser"].toString()
         val proxyPass = data["proxyPass"].toString()
 
-        // 创建并显示前台服务通知 —— 不暴露域名和端口
         val notificationIntent = Intent(this, MainActivity::class.java)
             .putExtra("iyue_vpn_channel", true)
         val pendingIntent = PendingIntent.getActivity(
@@ -127,6 +133,9 @@ class IyueVPNService : VpnService() {
             key.tcpSendBufferSize = ""
             key.tcpReceiveBufferSize = ""
             key.tcpModerateReceiveBuffer = false
+
+            // ===== 改动2：启动前先停旧引擎 =====
+            try { Engine.stop() } catch (e: Exception) { Log.d(TAG, "Engine.stop before start: ${e.message}") }
             Engine.insert(key)
             Engine.start()
             Log.d(TAG, "startEngine: success")
@@ -136,10 +145,12 @@ class IyueVPNService : VpnService() {
         }
     }
 
+    // ===== 改动3：stopVpnService 里取消注释 Engine.stop() =====
     fun stopVpnService() {
         Log.d(TAG, "stopVpnService: vpnInterface $vpnInterface")
         try {
             if (vpnInterface != null) {
+                try { Engine.stop() } catch (e: Exception) { Log.d(TAG, "Engine.stop: ${e.message}") }
                 vpnInterface?.close()
                 vpnInterface = null
                 isRunning = false
@@ -162,12 +173,12 @@ class IyueVPNService : VpnService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         Log.d(TAG, "onUnbind: IyueVPNService ")
-        stopVpnService()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "onDestroy: IyueVPNService ")
+        stopVpnService()
     }
 }
