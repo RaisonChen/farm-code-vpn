@@ -21,7 +21,6 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.green,
-        fontFamily: 'WenQuanYi Micro Hei',
         useMaterial3: true,
       ),
       home: const SingleSwitchPage(),
