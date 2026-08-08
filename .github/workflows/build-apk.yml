@@ -6,10 +6,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
 
     steps:
-      - name: Checkout repo (with submodules)
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -23,17 +23,20 @@ jobs:
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
           cache: true
 
-      - name: Set up Go (for tun2socks)
-        uses: actions/setup-go@v5
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
-          go-version: '1.22'
-
-      - name: Build tun2socks AAR
-        run: bash btun2socks.sh
-
+          name: single-switch-apk
+          path: build/app/outputs/flutter-apk/*.apk
       - name: Flutter pub get
         run: flutter pub get
 
