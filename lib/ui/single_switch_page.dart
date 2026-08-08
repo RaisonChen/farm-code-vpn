@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 
 class SingleSwitchPage extends StatefulWidget {
   const SingleSwitchPage({super.key});
   @override
-  State<SingleSwitchPage> createState() => _SingleSwitchPageState();
+  State createState() => _SingleSwitchPageState();
 }
 
 class _SingleSwitchPageState extends State<SingleSwitchPage>
@@ -59,7 +60,7 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
   Future<void> _toggle(bool v) async {
     try {
       if (v) {
-        await platform.invokeMethod('startVpn', <String, dynamic>{
+        await platform.invokeMethod('startVpn', {
           'proxyName': '农场取code',
           'proxyType': _type,
           'proxyHost': _h1 + _h2,
@@ -84,59 +85,68 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
     }
   }
 
+  /// 安装CA证书 —— 方案2：写私有目录 + 分享让用户保存到Download
   Future<void> _installCA() async {
     try {
-      final byteData = await rootBundle.load('assets/ca.cer');
-      final dir = Directory('/storage/emulated/0/Download');
-      if (!await dir.exists()) await dir.create(recursive: true);
-      final file = File('${dir.path}/ca.cer');
+      final byteData = await rootBundle.load('assets/ca.crt');
+
+      // 写 App 外部私有目录（不需要任何额外权限）
+      final dir = await getExternalStorageDirectory();
+      if (dir == null) throw Exception('无法获取存储目录');
+      final file = File('${dir.path}/ca.crt');
+      if (await file.exists()) await file.delete();
       await file.writeAsBytes(byteData.buffer.asUint8List());
 
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: const Row(
-              children: [
-                Icon(Icons.shield_outlined, color: Colors.green, size: 24),
-                SizedBox(width: 8),
-                Text('安装CA证书'),
-              ],
-            ),
-            content: const Text(
-              '证书已保存到：\n/Download/ca.cer\n\n'
-              '请前往系统设置安装：\n'
-              '设置 → 安全 → 加密与凭据\n'
-              '→ 安装证书 → CA证书\n'
-              '选择 ca.cer，输入锁屏密码即可。\n\n'
-              '安装完成后点击下方"我已安装"。',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('稍后'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _markCaInstalled();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text('我已安装'),
-              ),
+      // 弹出提示
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.shield_outlined, color: Colors.green, size: 24),
+              SizedBox(width: 8),
+              Text('安装CA证书'),
             ],
           ),
-        );
-      }
+          content: const Text(
+            '接下来会弹出"分享"菜单，请选择：\n'
+            '「保存到手机」或「保存到下载」\n\n'
+            '保存成功后，再去：\n'
+            '设置 → 安全 → 加密与凭据\n'
+            '→ 安装证书 → CA证书\n'
+            '选择刚才保存的 ca.crt\n\n'
+            '安装完成后点击下方"我已安装"。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('稍后'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                // 调起系统分享，让用户自己保存到 Download
+                await Share.shareXFiles(
+                  [XFile(file.path, mimeType: 'application/x-x509-ca-cert')],
+                  subject: 'CA证书',
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('去保存证书'),
+            ),
+          ],
+        ),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -274,7 +284,7 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
 
                   const SizedBox(height: 16),
                   Text(
-                    'v1.0.9 · 仅代理QQ',
+                    '仅代理QQ端',
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade400,
