@@ -67,7 +67,7 @@ class _SingleSwitchPageState extends State<SingleSwitchPage>
           'proxyPort': _port.toString(),
           'proxyUser': '',
           'proxyPass': '',
-          'appProxyPackageList': _apps,
+          'appProxyPackageList': jsonEncode(_apps),
         });
         _animCtrl.forward();
       } else {
