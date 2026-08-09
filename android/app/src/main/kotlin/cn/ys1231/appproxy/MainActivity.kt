@@ -100,14 +100,19 @@ class MainActivity : FlutterActivity() {
 
     private fun startVpnService() {
         Log.d(TAG, "startVpnService: ${currentProxy.toString()}")
-        iyueVpnService?.startVpnService(currentProxy!!)
-        vpnController?.setVpnConfig(currentProxy!!)
+
+        // 修复：Map<*, *> → Map<String, Any> 类型转换
+        val raw = currentProxy ?: emptyMap<Any?, Any?>()
+        val typed: Map<String, Any> = raw.mapKeys { it.key.toString() }
+            .mapValues { it.value ?: "" }
+
+        iyueVpnService?.startVpnService(typed)
+        vpnController?.setVpnConfig(typed)
 
         // 检测VPN服务是否停止 通知 Flutter 更新 ui
         Thread {
             Log.d(TAG, "check iyueVpnService isRunning: " + iyueVpnService?.isRunning())
             while (true) {
-
                 if (iyueVpnService?.isRunning() == true) {
                     Thread.sleep(1000)
                 } else {
