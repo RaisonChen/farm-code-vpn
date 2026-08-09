@@ -48,9 +48,6 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 修复：utils 必须先初始化，再传给 VpnServiceController
-        utils = Utils(this)
-
         intentVpnService = Intent(this, IyueVPNService::class.java)
         vpnController = VpnServiceController(this, iyueVpnService, utils!!)
         conn = object : ServiceConnection {
